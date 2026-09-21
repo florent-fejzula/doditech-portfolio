@@ -1,0 +1,16 @@
+/* Latin subsets only — Rajdhani ships Devanagari by default, which is
+   ~450KB of build output nobody on this site will ever render. */
+@import '@fontsource-variable/orbitron/wght.css';
+@import '@fontsource/rajdhani/latin-400.css';
+@import '@fontsource/rajdhani/latin-500.css';
+@import '@fontsource/rajdhani/latin-600.css';
+@import '@fontsource/rajdhani/latin-700.css';
+@import '@fontsource/rajdhani/latin-ext-400.css';
+@import '@fontsource/rajdhani/latin-ext-600.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+
+@import 'tailwindcss';
+
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/hud.css';

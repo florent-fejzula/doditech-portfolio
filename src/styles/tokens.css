@@ -1,0 +1,73 @@
+/* ------------------------------------------------------------------
+   DODITECH HUD — design tokens
+   One source of truth for colour, type, rhythm and glow.
+   ------------------------------------------------------------------ */
+
+@theme {
+  /* ---- surfaces ---- */
+  --color-void: #02040a;
+  --color-abyss: #03060d;
+  --color-deep: #060d1a;
+  --color-slate: #0a1626;
+  --color-panel: #08111f;
+
+  /* ---- signal ---- */
+  --color-cy-100: #d8fbff;
+  --color-cy-200: #9bf3ff;
+  --color-cy-300: #5fe7ff;
+  --color-cy-400: #22d3ee;
+  --color-cy-500: #0ea5c6;
+  --color-cy-600: #0b7f9b;
+  --color-cy-700: #075a6e;
+
+  --color-blu-300: #7db8ff;
+  --color-blu-400: #3b82f6;
+  --color-blu-500: #1d4ed8;
+
+  --color-amber: #ffb020;
+  --color-amber-dim: #a06c0d;
+  --color-alert: #ff4d5e;
+  --color-online: #2ef2a4;
+
+  /* ---- ink ---- */
+  --color-ink: #cfeffd;
+  --color-ink-dim: #6f9ab0;
+  --color-ink-faint: #3d6073;
+
+  /* ---- type ---- */
+  --font-display: 'Orbitron Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-ui: 'Rajdhani', ui-sans-serif, system-ui, sans-serif;
+  --font-data: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
+
+  /* ---- motion ---- */
+  --ease-hud: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+:root {
+  /* structural lines — kept as raw vars so they compose inside gradients */
+  --line: color-mix(in oklab, var(--color-cy-400) 22%, transparent);
+  --line-soft: color-mix(in oklab, var(--color-cy-400) 11%, transparent);
+  --line-hot: color-mix(in oklab, var(--color-cy-300) 55%, transparent);
+
+  --glow-sm: 0 0 6px color-mix(in oklab, var(--color-cy-300) 45%, transparent);
+  --glow-md: 0 0 14px color-mix(in oklab, var(--color-cy-400) 38%, transparent);
+  --glow-lg: 0 0 42px color-mix(in oklab, var(--color-cy-500) 34%, transparent);
+
+  /* HUD chrome metrics — the whole layout derives from these */
+  --rail-w: 268px;
+  --bar-h: 46px;
+  --gutter: 14px;
+  --hud-inset: 12px;
+
+  /* driven by JS: 0 during boot, 1 when the interface is live */
+  --live: 0;
+
+  color-scheme: dark;
+}
+
+@media (max-width: 1440px) {
+  :root {
+    --rail-w: 232px;
+  }
+}
