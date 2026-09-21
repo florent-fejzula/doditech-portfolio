@@ -7,7 +7,12 @@
 @import '@fontsource/rajdhani/latin-700.css';
 @import '@fontsource/rajdhani/latin-ext-400.css';
 @import '@fontsource/rajdhani/latin-ext-600.css';
-@import '@fontsource-variable/jetbrains-mono/wght.css';
+/* index.css (not wght.css) so the Cyrillic subsets are declared too. */
+@import '@fontsource-variable/jetbrains-mono/index.css';
+/* Cyrillic companion for Rajdhani, which is Latin-only. Ordering in
+   --font-ui keeps Latin on Rajdhani; unicode-range means a Latin-only
+   visitor never downloads an Exo 2 file. */
+@import '@fontsource-variable/exo-2/wght.css';
 
 @import 'tailwindcss';
 

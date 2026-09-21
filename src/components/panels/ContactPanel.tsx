@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Brackets, Readout } from '@/components/hud/primitives'
 import { PanelShell } from '@/components/stage/PanelShell'
 import { Waveform } from '@/components/canvas/Waveform'
@@ -10,9 +10,41 @@ type State = 'idle' | 'sending' | 'sent' | 'error'
 const field =
   'w-full bg-[color-mix(in_oklab,var(--color-cy-400)_6%,transparent)] border border-[var(--line)] px-3 py-2 font-[var(--font-ui)] text-[15px] text-[var(--color-ink)] outline-none transition-colors placeholder:text-[var(--color-ink-faint)] focus:border-[var(--line-hot)]'
 
+/**
+ * Copy button with a short confirmation. Falls back to selecting the
+ * text when the Clipboard API is unavailable or blocked — which it is
+ * over plain HTTP and in some embedded browsers.
+ */
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text)
+      setState('copied')
+    } catch {
+      setState('failed')
+    }
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setState('idle'), 2400)
+  }
+
+  return (
+    <button type="button" className="hud-btn !px-3 !py-1.5" onClick={copy}>
+      {state === 'copied' ? '✓ Copied' : state === 'failed' ? '⃠ Select it manually' : `⧉ ${label}`}
+    </button>
+  )
+}
+
 export function ContactPanel() {
   const [state, setState] = useState<State>('idle')
   const [error, setError] = useState('')
+  // Held so a visitor whose mail client never opened can copy what they
+  // wrote instead of losing it.
+  const [draft, setDraft] = useState<string | null>(null)
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -27,6 +59,7 @@ export function ContactPanel() {
     })
 
     if (result.ok) {
+      setDraft(result.channel === 'mailto' ? result.draft : null)
       setState('sent')
     } else {
       setError(result.error)
@@ -103,21 +136,47 @@ export function ContactPanel() {
             <Brackets inset={4} />
 
             {state === 'sent' ? (
-              <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center">
-                <div className="t-datum glow mb-3 !text-[28px] text-[var(--color-online)]">◈</div>
-                <h3 className="t-head text-[15px]">Transmission received</h3>
-                <p className="t-body mt-2 max-w-[38ch] text-[var(--color-ink-dim)]">
-                  {isConfigured
-                    ? 'Logged and queued. You will hear from me shortly.'
-                    : 'Your mail client should be open with the message ready to send.'}
-                </p>
-                <button
-                  type="button"
-                  className="hud-btn mt-5"
-                  onClick={() => setState('idle')}
-                >
-                  ↺ New message
-                </button>
+              <div className="flex h-full min-h-[320px] flex-col justify-center">
+                <div className="text-center">
+                  <div className="t-datum glow mb-3 !text-[28px] text-[var(--color-online)]">◈</div>
+                  <h3 className="t-head text-[15px]">
+                    {draft ? 'Handed to your mail client' : 'Transmission received'}
+                  </h3>
+                  <p className="t-body mx-auto mt-2 max-w-[40ch] text-[var(--color-ink-dim)]">
+                    {draft
+                      ? 'A draft should have opened, already addressed and filled in. Send it and it reaches me.'
+                      : 'Logged and queued. You will hear from me shortly.'}
+                  </p>
+                </div>
+
+                {/* Nothing can detect a mailto: that silently did nothing,
+                    so the escape hatch is always offered rather than
+                    waiting for the visitor to report a dead button. */}
+                {draft && (
+                  <div className="hud-plate mt-5 p-3.5">
+                    <div className="t-label mb-2">If no draft appeared</div>
+                    <p className="t-body mb-3 text-[13.5px] text-[var(--color-ink-dim)]">
+                      Some browsers have no mail client to hand it to. Copy both and send it from
+                      wherever you read mail — nothing you typed is lost.
+                    </p>
+                    <div className="mb-3 border border-[var(--line-soft)] px-3 py-2">
+                      <div className="t-label !text-[8.5px]">address</div>
+                      <div className="t-datum mt-0.5 select-all break-all text-[var(--color-cy-200)]">
+                        {contact.email}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <CopyButton text={contact.email} label="Copy address" />
+                      <CopyButton text={draft} label="Copy message" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 text-center">
+                  <button type="button" className="hud-btn" onClick={() => setState('idle')}>
+                    ↺ New message
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={onSubmit} className="space-y-3">

@@ -19,7 +19,12 @@ export interface Message {
 
 export type SendResult =
   | { ok: true; channel: 'firestore' }
-  | { ok: true; channel: 'mailto' }
+  /**
+   * `draft` is the composed message. A mail client that never opened
+   * leaves the visitor with nothing, so the panel offers it for copying
+   * rather than making them retype it.
+   */
+  | { ok: true; channel: 'mailto'; draft: string }
   | { ok: false; error: string }
 
 /** Firestore calls can hang when the API is disabled — don't let them. */
@@ -34,26 +39,42 @@ const config = {
 
 export const isConfigured = Boolean(config.apiKey && config.projectId && config.appId)
 
+/** Plain-text version of the enquiry, for the mail body and for copying. */
+export function composeDraft(message: Message) {
+  return [
+    `Name: ${message.name}`,
+    `Email: ${message.email}`,
+    message.company ? `Company: ${message.company}` : null,
+    '',
+    message.body,
+  ]
+    // Not filter(Boolean): that would also drop the '' separator and run
+    // the message straight into the header block.
+    .filter((line) => line !== null)
+    .join('\n')
+}
+
+/**
+ * Hands the message to the visitor's mail client. There is no way to
+ * detect whether that worked — a machine with no handler registered for
+ * mailto: simply does nothing — so the caller always gets the draft back
+ * and shows a copyable fallback either way.
+ */
 function mailto(message: Message) {
+  const draft = composeDraft(message)
   const subject = encodeURIComponent(`Enquiry from ${message.name}`)
-  const body = encodeURIComponent(
-    [
-      `Name: ${message.name}`,
-      `Email: ${message.email}`,
-      message.company ? `Company: ${message.company}` : null,
-      '',
-      message.body,
-    ]
-      .filter(Boolean)
-      .join('\n'),
-  )
-  window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`
+  try {
+    window.location.href =
+      `mailto:${contact.email}?subject=${subject}&body=${encodeURIComponent(draft)}`
+  } catch {
+    /* blocked or unhandled — the fallback block carries the message */
+  }
+  return draft
 }
 
 export async function sendMessage(message: Message): Promise<SendResult> {
   if (!isConfigured) {
-    mailto(message)
-    return { ok: true, channel: 'mailto' }
+    return { ok: true, channel: 'mailto', draft: mailto(message) }
   }
 
   try {
@@ -79,7 +100,6 @@ export async function sendMessage(message: Message): Promise<SendResult> {
     // Rules rejected it, the API is off, the visitor is offline — it does
     // not matter which. An enquiry is too valuable to drop on the floor,
     // so hand it to the mail client rather than showing an error.
-    mailto(message)
-    return { ok: true, channel: 'mailto' }
+    return { ok: true, channel: 'mailto', draft: mailto(message) }
   }
 }

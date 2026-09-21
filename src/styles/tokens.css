@@ -35,8 +35,10 @@
   --color-ink-faint: #3d6073;
 
   /* ---- type ---- */
-  --font-display: 'Orbitron Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-ui: 'Rajdhani', ui-sans-serif, system-ui, sans-serif;
+  /* Rajdhani and Orbitron carry no Cyrillic; Exo 2 picks those
+     codepoints up so Macedonian copy stays in family. */
+  --font-display: 'Orbitron Variable', 'Exo 2 Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-ui: 'Rajdhani', 'Exo 2 Variable', ui-sans-serif, system-ui, sans-serif;
   --font-data: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
 
   /* ---- motion ---- */

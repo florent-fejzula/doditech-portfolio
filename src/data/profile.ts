@@ -196,6 +196,57 @@ export const projects: Project[] = [
     progress: 100,
   },
   {
+    id: 'e-faktura',
+    name: 'e-Faktura',
+    role: 'Architecture · Full build',
+    summary:
+      'An invoicing product for North Macedonia, built to the УЈП e-Фактура specification. A company enters its details once, then creates, numbers, validates, prints and exports invoices; the operator runs it as a subscription, with an admin screen that provisions a new customer — auth account, company record and subscription — in a single call. It is the web successor to an offline desktop invoicing tool I built earlier, which has seven active business users moving across to this version. Submission to УЈП is deliberately not wired yet: it needs a JWS signed by a smart-card certificate that no browser tab can reach, so signing and transport are abstract seams rather than a half-working implementation.',
+    year: '2026',
+    status: 'live',
+    stack: [
+      'Angular',
+      'TypeScript',
+      'Angular Material',
+      'Firebase Auth',
+      'Firestore',
+      'Firestore Security Rules',
+      'Cloud Functions',
+      'RxJS',
+      'Firebase Hosting',
+    ],
+    metrics: [
+      { label: 'Users on the predecessor', value: '7' },
+      { label: 'Tests & E2E assertions', value: '129' },
+      { label: 'Initial bundle', value: '273 kB' },
+    ],
+    highlights: [
+      {
+        title: 'Getting the tax spec right, where public write-ups get it wrong',
+        detail:
+          'It is JSON and JWS, not UBL 2.1. Line amounts carry four decimals while document totals carry two, so rounding has to happen at one specific point or the totals disagree with the sum of the lines. A reverse-charge line keeps its VAT rate but reports zero VAT, while still declaring a notional amount in the totals. The seller VAT number takes a Cyrillic МК prefix beside a Latin MK country code. It is handled by a dedicated totals engine with more test code than implementation, plus a separate document builder and validator, and an 87-entry tax-indicator codebook generated from the official source rather than typed by hand.',
+      },
+      {
+        title: 'Immutability enforced in rules, not in the interface',
+        detail:
+          'A tax record that the UI merely declines to edit is not immutable. 165 lines of Firestore rules with nine helpers do the real work: access is scoped by member UID so no query can reach another company’s data; an issued invoice freezes on its issued timestamp rather than its status, because a status check would leave issued-but-unsubmitted invoices editable; after issue only payment tracking and the tax receipt may change; deletion is allowed only while the authority holds no copy. The subscription date is unwritable from any browser, and admin rights live in a document no client can write. The end-to-end suite asserts each of these against a real emulator rather than trusting them.',
+      },
+      {
+        title: 'Two places where the platform fights the requirement',
+        detail:
+          'Signing needs a qualified certificate on a smart card behind a PIN, and the authority’s host sends no CORS headers — so the signer and transport are abstract, currently bound to implementations that refuse and explain why, swappable for an extension bridge, a server-held certificate or a desktop shell. Separately, provisioning a customer from the browser is impossible, because creating the auth account replaces the operator’s own session — they would be signed in as the customer they just created. That moved to an Admin-SDK callable that writes profile and company in one batch and deletes the auth account if the batch fails, so a half-failed run cannot leave an orphan that makes the next attempt fail on “email already in use”.',
+      },
+    ],
+    image: '/shots/e-faktura.webp',
+    imageLayout: 'full',
+    links: [
+      { label: 'Live app', href: 'https://e-faktura-1e6d0.web.app' },
+      { label: 'Repo', href: 'https://github.com/florent-fejzula/e-faktura' },
+    ],
+    // Invoicing works end to end and is deployed; submission to УЈП
+    // is the remaining piece, hence live-but-not-100.
+    progress: 75,
+  },
+  {
     id: 'combo',
     name: 'COMBO Mobile App',
     role: 'Architecture · Full build',
@@ -238,12 +289,58 @@ export const projects: Project[] = [
     image: '/shots/combo-mk.webp',
     links: [
       { label: 'Client site', href: 'https://combo.mk' },
-      { label: 'Repo', href: 'https://github.com/florent-fejzula/combo-mk' },
+      // Repo link pulled: github.com/florent-fejzula/combo-mk returns 404
+      // to anonymous visitors. Make it public and this goes back in.
     ],
     // Distance to a production release, not to the demo scope — the demo
     // itself is complete. Order submission, accounts, live loyalty and
     // push notifications are the remainder.
     progress: 40,
+  },
+  {
+    id: 'servis-auto',
+    name: 'Servis Auto',
+    role: 'Architecture · Full build',
+    summary:
+      'A work-order system for Auto Servis Bosch, a car repair shop in Kumanovo. Staff record the client, the vehicle, what the client reported and what was actually replaced, then print a signed sheet stating the guarantee — the point is to settle “you broke something else” arguments with a dated document rather than with memory. The shop serves Albanian and Macedonian clients, so the printed sheet has to come out in the client’s language regardless of which language the mechanic has the app set to. That one requirement ruled out Angular’s built-in i18n and shaped the rest of the build.',
+    year: '2026',
+    status: 'live',
+    stack: [
+      'Angular',
+      'TypeScript',
+      'Firestore',
+      'Firebase Auth',
+      'Firebase Hosting',
+      'PWA / Service Worker',
+      'SCSS',
+      'Vitest',
+    ],
+    metrics: [
+      { label: 'Languages in one build', value: '3' },
+      { label: 'Unit tests passing', value: '24' },
+      { label: 'Initial bundle, gzipped', value: '241 kB' },
+    ],
+    highlights: [
+      {
+        title: 'Print language decoupled from interface language',
+        detail:
+          'The sheet a client signs must be in their language while the mechanic keeps the app in his — one build, two languages live at the same time. Angular’s built-in i18n compiles one bundle per locale and structurally cannot do that. It runs on runtime dictionaries instead, with a service exposing two lookups: one for the current interface language, one for an explicitly named language, and the print view resolving the client’s language off the job itself. A test fails the build if the three dictionaries ever drift out of sync.',
+      },
+      {
+        title: 'The document is evidence, so it cannot change retroactively',
+        detail:
+          'A job copies the client name, phone, plate and guarantee term onto itself when it is created, rather than referencing them. A client changing their phone number, or the shop changing its default guarantee term, must never silently rewrite what a sheet printed last March actually promised. Work orders get human-readable per-year sequential numbers through a transactional counter, and Firestore runs with a persistent local cache so the shop’s unreliable wifi does not block intake.',
+      },
+      {
+        title: 'The Print button that did nothing on iPhone',
+        detail:
+          'Reported as a dead button, and it was not application code: in an iOS home-screen web app there is no Safari chrome to host a print or share sheet, so the print call is silently ignored. The fix detects standalone mode and reopens the same route in a real Safari tab, carrying a flag that fires the dialog once and then scrubs itself out of the URL.',
+      },
+    ],
+    image: '/shots/servis-auto.webp',
+    imageLayout: 'full',
+    links: [{ label: 'Source', href: 'https://github.com/florent-fejzula/auto-service-bosch' }],
+    progress: 100,
   },
 ]
 
