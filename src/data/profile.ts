@@ -426,7 +426,7 @@ export const projects: Project[] = [
     name: 'Perfumery In-Store',
     role: 'Architecture · Full build',
     summary:
-      'A touchscreen catalogue built to stand on a tablet inside a niche perfume shop. Customers narrow 377 bottles by gender, scent family and main note, tap one to read its brand, notes and description, or open a curated seasonal gallery; staff add stock and choose which brands appear from a separate admin screen. Two constraints shaped it: a kiosk has no back button and nobody to ask, so the filters must never lead to an empty screen — and shop wifi drops, so the device has to keep working when it does.',
+      'The touchscreen catalogue on the shop-floor iPad at Maison de Parfum, a niche perfumery in Skopje — the same shop that runs on Maison Loyalty. Customers narrow 377 bottles by gender, scent family and main note, tap one to read its brand, notes and description, or open a curated seasonal gallery; staff add new stock and choose which brands appear from admin screens on the shop’s work PC. Two constraints shaped it: a kiosk has no back button and nobody to ask, so the filters must never lead to an empty screen — and shop wifi drops, so the device has to keep working when it does.',
     year: '2024–2026',
     status: 'live',
     stack: [
