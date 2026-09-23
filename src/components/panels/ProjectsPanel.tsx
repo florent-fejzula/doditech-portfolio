@@ -4,6 +4,7 @@
    the hash, so every project has a shareable URL.
    ================================================================== */
 
+import { useState } from 'react'
 import { Bar, Brackets, DecodeText, Readout } from '@/components/hud/primitives'
 import { PanelShell } from '@/components/stage/PanelShell'
 import { projects, type Project, type Status } from '@/data/profile'
@@ -28,41 +29,85 @@ function StatusTag({ status }: { status: Status }) {
   )
 }
 
+/** A project's screenshots as one list, whether it has one or several. */
+function framesOf(project: Project) {
+  if (project.gallery?.length) return project.gallery
+  return project.image ? [{ src: project.image, label: '', caption: '' }] : []
+}
+
 /**
  * Client screenshots are usually light-on-white. The dark plate and
  * scanlines make them read as something the cockpit is displaying
  * rather than pasted in.
  */
 function Shot({ project, full }: { project: Project; full: boolean }) {
-  if (!project.image) return null
+  const frames = framesOf(project)
+  const [active, setActive] = useState(0)
+  if (frames.length === 0) return null
+
+  const frame = frames[Math.min(active, frames.length - 1)]
+
   return (
     <figure className="hud-frame" data-tone="ghost">
       <div className="hud-frame__in">
         <div className="flex items-center gap-2 border-b border-[var(--line-soft)] px-2.5 py-1.5">
           <span className="t-label !text-[8.5px]">visual record</span>
           <span className="hud-ticks h-[7px] flex-1 opacity-40" />
-          <span className="t-datum !text-[9px] text-[var(--color-cy-600)]">
-            {project.id.toUpperCase()}
-          </span>
+          {frames.length > 1 ? (
+            // Channel switcher rather than stacked images: one frame keeps
+            // the panel short, and flipping between two views of the same
+            // data makes the comparison itself the point.
+            <div className="flex gap-1" role="group" aria-label="Screenshot view">
+              {frames.map((f, i) => (
+                <button
+                  key={f.src}
+                  type="button"
+                  onClick={() => setActive(i)}
+                  aria-pressed={i === active}
+                  className="t-datum border px-2 py-0.5 !text-[9px] !tracking-[0.14em] uppercase transition-colors"
+                  style={{
+                    borderColor: i === active ? 'var(--line-hot)' : 'var(--line-soft)',
+                    color: i === active ? 'var(--color-cy-100)' : 'var(--color-ink-dim)',
+                    background:
+                      i === active
+                        ? 'color-mix(in oklab, var(--color-cy-400) 14%, transparent)'
+                        : 'transparent',
+                  }}
+                >
+                  {String(i + 1).padStart(2, '0')} · {f.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="t-datum !text-[9px] text-[var(--color-cy-600)]">
+              {project.id.toUpperCase()}
+            </span>
+          )}
         </div>
         <div className="fx-scanlines relative bg-[var(--color-void)] p-2">
           <img
-            src={project.image}
-            alt={`${project.name} interface`}
+            key={frame.src}
+            src={frame.src}
+            alt={frame.caption || `${project.name} interface`}
             loading="lazy"
             decoding="async"
-            className={`mx-auto block max-w-full object-contain ${
+            className={`anim-rise mx-auto block max-w-full object-contain ${
               full ? 'w-full' : 'max-h-[520px] w-auto'
             }`}
           />
         </div>
+        {frame.caption && (
+          <figcaption className="t-label border-t border-[var(--line-soft)] px-2.5 py-1.5 !normal-case !tracking-normal !text-[11px]">
+            {frame.caption}
+          </figcaption>
+        )}
       </div>
     </figure>
   )
 }
 
 function Dossier({ project }: { project: Project }) {
-  const full = project.imageLayout === 'full' && Boolean(project.image)
+  const full = project.imageLayout === 'full' && framesOf(project).length > 0
 
   return (
     <article

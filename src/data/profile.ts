@@ -33,6 +33,12 @@ export interface Project {
   /** Optional screenshot in /public. */
   image?: string
   /**
+   * Several screenshots shown in one frame with a switcher, in place of
+   * `image` — for a record that spans more than one surface. `label` is
+   * the tab, `caption` sits under the shot.
+   */
+  gallery?: { src: string; label: string; caption: string }[]
+  /**
    * 'beside' (default) puts the shot in a narrow column next to the
    * summary — right for a portrait phone capture. 'full' gives it the
    * panel's full width, which a dense landscape UI needs to stay
@@ -249,34 +255,34 @@ export const projects: Project[] = [
   {
     // One record for two systems: the internal stock app and the public
     // website it feeds. The connection between them is the story.
-    // Landing-page half pending its own write-up.
     id: 'rera',
     name: 'Rera Hair Fashion',
     role: 'Architecture · Full build',
     summary:
-      'The stock system for Rera Hair Fashion, which sells salon equipment and hair-care products, and the public website that shows its catalogue. Staff run the internal app from their phones as an installable PWA — tracking inventory, recording each sale at full or discounted price, and managing categories — while an owner-level role also sees sales history and total stock value. Every product added internally appears on the public site automatically, with its name, category and photo, and without the site ever being able to read a price or a stock level. Both are delivered and actively in use.',
+      'Two connected systems for Rera Hair Fashion Group, a salon and barber equipment wholesaler in Skopje that also runs two salons: the stock app its staff use every day, and the four-language public website that shows its catalogue. Staff run the stock app from their phones as an installable PWA — inventory, sales at full or discounted price, categories — with an owner role that also sees sales history and total stock value. Publishing a product means adding it there: it appears on the public site automatically with its name, category and photo, never its price or stock level, and a visitor’s enquiry hands off to WhatsApp or Viber with the product already named. Both are delivered and actively in use.',
     year: '2026',
     status: 'live',
     stack: [
-      'React',
-      'Vite',
-      'React Router',
       'Firestore',
+      'React',
+      'Vanilla JavaScript',
       'Firebase Auth',
       'Firebase Storage',
-      'Firebase Hosting',
       'PWA (Workbox)',
+      'Vite',
+      'schema.org JSON-LD',
+      'Firebase Hosting',
     ],
     metrics: [
       { label: 'Fields the public site can read', value: '3' },
-      { label: 'Roles, enforced in rules', value: '2' },
-      { label: 'Initial bundle, gzipped', value: '208 kB' },
+      { label: 'Products published by staff', value: '250' },
+      { label: 'Languages on the public site', value: '4' },
     ],
     highlights: [
       {
         title: 'One product, two audiences, no server in between',
         detail:
-          'The public website needs product names and photos; prices and stock levels are commercially sensitive. With no backend to mediate, every product create, edit and delete also writes a second document to a public mirror carrying only name, category and image. Security rules make the real collection readable by signed-in staff only and the mirror readable by anyone, so the website physically cannot fetch what it should not show. Roles are enforced twice: route guards shape the interface, rule functions do the actual securing, because a client-side check alone is cosmetic.',
+          'The website needs product names and photos; prices and stock levels are commercially sensitive. Firestore security rules grant access per document, not per field — so no rule can let the public read a product while hiding its price. With no backend to mediate, every product create, edit and delete in the stock app also writes a sanitised mirror carrying only name, category and image, and the website reads only the mirror. The confidential fields are not hidden from the public client; they are absent from anything it can reach, so devtools or a crafted query have nothing to find.',
       },
       {
         title: 'A save that showed success, then quietly vanished',
@@ -284,17 +290,39 @@ export const projects: Project[] = [
           'Firestore applies a write to the local cache before the server confirms it, so a write the rules reject renders as success and then silently rolls back. Combined with error handling that caught nothing, staff watched categories save and disappear with no error ever shown. It surfaced from a real user complaint, not a test — and it is a whole class of bug worth designing against, not a one-off.',
       },
       {
+        title: 'Focus stolen by the browser’s own click',
+        detail:
+          'The enquiry dialog would not take keyboard focus on open. Instrumented, the focus call fired and returned with the active element unchanged: a real click or Enter press carries the browser’s own “return focus to the activated control” step, which outlived a synchronous call, a zero timeout and two animation frames — measured at five. Rather than guess a delay that might be too short on slower hardware, the dialog retries each frame until the active element confirms focus landed. It only reproduced under genuine activation; a scripted click worked fine, so mouse-only testing would have passed it.',
+      },
+      {
         title: 'A login that failed on every first attempt',
         detail:
           'Sign-in resolves before the auth listener finishes looking up the user’s role, so navigating on that promise hit a route guard that still saw no user and bounced straight back to the login form, cleared. Every user logged in twice, every time. Navigation now reacts to the auth state itself rather than to the sign-in call returning.',
       },
     ],
-    // Production screenshot. Prices, quantities, total units and stock
-    // value are redacted — publishing them would undo note 01. The
-    // unredacted original lives in the gitignored design/private/.
-    image: '/shots/rera-stock.webp',
+    // The same products on both surfaces — flipping between them shows
+    // note 01 working. The staff shot is production data with prices,
+    // quantities, units and stock value redacted; the unredacted
+    // original lives in the gitignored design/private/.
+    gallery: [
+      {
+        src: '/shots/rera-stock.webp',
+        label: 'Staff app',
+        caption:
+          'The stock app, signed in as the owner. Prices, quantities and stock value redacted for publication.',
+      },
+      {
+        src: '/shots/rera-website.webp',
+        label: 'Public site',
+        caption:
+          'rera.mk — the same products, published straight from the stock app. No price or quantity ever reaches this page.',
+      },
+    ],
     imageLayout: 'full',
-    links: [{ label: 'Source · stock app', href: 'https://github.com/florent-fejzula/rera-stock' }],
+    links: [
+      { label: 'Live site', href: 'https://rera.mk' },
+      { label: 'Source · stock app', href: 'https://github.com/florent-fejzula/rera-stock' },
+    ],
     progress: 100,
   },
   {
