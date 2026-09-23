@@ -421,6 +421,77 @@ export const projects: Project[] = [
     links: [{ label: 'Source', href: 'https://github.com/florent-fejzula/auto-service-bosch' }],
     progress: 100,
   },
+  {
+    id: 'perfumery',
+    name: 'Perfumery In-Store',
+    role: 'Architecture · Full build',
+    summary:
+      'A touchscreen catalogue built to stand on a tablet inside a niche perfume shop. Customers narrow 377 bottles by gender, scent family and main note, tap one to read its brand, notes and description, or open a curated seasonal gallery; staff add stock and choose which brands appear from a separate admin screen. Two constraints shaped it: a kiosk has no back button and nobody to ask, so the filters must never lead to an empty screen — and shop wifi drops, so the device has to keep working when it does.',
+    year: '2024–2026',
+    status: 'live',
+    stack: [
+      'Angular 20',
+      'TypeScript',
+      'Angular Signals',
+      'Firestore',
+      'Firebase Storage',
+      'PWA / Service Worker',
+      'RxJS',
+      'SCSS',
+      'Firebase Hosting',
+      'Claude API',
+    ],
+    metrics: [
+      { label: 'Perfumes across 30 brands', value: '377' },
+      { label: 'Filter tags on three axes', value: '49' },
+      { label: 'Filter paths ending on an empty screen', value: '0' },
+    ],
+    highlights: [
+      {
+        title: 'Filters that cannot dead-end',
+        detail:
+          'Tags combine with AND, and across 49 of them most pairs match nothing. On every render the catalogue runs a speculative pass: for each tag not yet selected it simulates adding it, filters the full list, and disables the tag if nothing would survive. Select Aquatic and Citrus and 377 bottles narrow to 9 while 38 tags grey out. A customer physically cannot reach an empty grid — which matters on a kiosk, where an empty screen reads as broken.',
+      },
+      {
+        title: 'Working through wifi drops without a sync layer',
+        detail:
+          'Firestore runs with a persistent IndexedDB cache, and the stores load once and hold the catalogue in memory, so moving between screens never refetches. After the first read, a background pass quietly requests every bottle image, pushing the whole catalogue into the browser cache. With the service worker on top, the device keeps browsing when the connection goes.',
+      },
+      {
+        title: 'Brand visibility: instant, and never wrong',
+        detail:
+          'Staff toggling a brand — or all 30 at once — need immediate feedback, but a failed write must not leave the kiosk showing something the database does not. The toggle updates the interface first, commits one batched write, and restores the previous state if the write throws. The catalogue reacts to the change and re-applies the active filters without a refetch.',
+      },
+      {
+        title: 'Descriptions that do not all sound the same',
+        detail:
+          'The bottle descriptions are generated at build time with Claude, in batches, by a Node script. Left alone, 377 perfume descriptions converge on one voice — every scent “whispers”, “unfolds” into a “tapestry”. The prompt bans 22 of those stock words outright, which is what keeps the catalogue readable end to end.',
+      },
+    ],
+    // Same bottle in both frames: Citrus Riviera survives the filter in
+    // the catalogue shot and leads the seasonal gallery. Both captured
+    // from the live site.
+    gallery: [
+      {
+        src: '/shots/perfumery-catalog.webp',
+        label: 'Catalogue',
+        caption:
+          'Aquatic and Citrus selected: 377 bottles narrow to 9, and every tag that would lead to an empty screen is disabled.',
+      },
+      {
+        src: '/shots/perfumery-gallery.webp',
+        label: 'Seasonal gallery',
+        caption:
+          'The Summer 2026 gallery — 17 slides on a 30-second auto-advance, descriptions generated at build time.',
+      },
+    ],
+    imageLayout: 'full',
+    links: [
+      { label: 'Live', href: 'https://perfume-filtering-app.web.app' },
+      { label: 'Source', href: 'https://github.com/florent-fejzula/perfumery-in-store' },
+    ],
+    progress: 100,
+  },
 ]
 
 export const stackGroups: StackGroup[] = [
