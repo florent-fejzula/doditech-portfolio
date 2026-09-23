@@ -26,3 +26,6 @@ dist-ssr
 
 # Firebase CLI deploy cache — regenerated on every deploy
 .firebase/
+
+# Unredacted production screenshots — client data, never committed
+design/private/
