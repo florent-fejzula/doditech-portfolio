@@ -56,6 +56,7 @@ export function ContactPanel() {
       email: String(form.get('email') ?? ''),
       company: String(form.get('company') ?? '') || undefined,
       body: String(form.get('body') ?? ''),
+      trap: String(form.get('website') ?? ''),
     })
 
     if (result.ok) {
@@ -187,6 +188,17 @@ export function ContactPanel() {
                     {isConfigured ? 'SECURE' : 'MAIL'}
                   </span>
                 </div>
+
+                {/* Honeypot: off-screen rather than display:none, which
+                    some bots skip. Real visitors never tab to it or see
+                    it; a filled value means something scripted the form. */}
+                <label
+                  className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden"
+                  aria-hidden="true"
+                >
+                  Leave this field blank
+                  <input name="website" tabIndex={-1} autoComplete="off" />
+                </label>
 
                 <label className="block">
                   <span className="t-label">name *</span>

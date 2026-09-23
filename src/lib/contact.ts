@@ -15,6 +15,12 @@ export interface Message {
   email: string
   company?: string
   body: string
+  /**
+   * Honeypot value from a field real visitors never see or fill. Any
+   * non-empty value here means a bot filled every input it could find,
+   * so the caller should pretend to succeed without writing anything.
+   */
+  trap?: string
 }
 
 export type SendResult =
@@ -73,6 +79,13 @@ function mailto(message: Message) {
 }
 
 export async function sendMessage(message: Message): Promise<SendResult> {
+  // A filled honeypot means something scripted every input on the page.
+  // Report success without writing anything or opening a mail client —
+  // there is no real enquiry to lose, and nothing here tips the bot off.
+  if (message.trap) {
+    return { ok: true, channel: 'firestore' }
+  }
+
   if (!isConfigured) {
     return { ok: true, channel: 'mailto', draft: mailto(message) }
   }
@@ -82,8 +95,14 @@ export async function sendMessage(message: Message): Promise<SendResult> {
       await Promise.all([import('firebase/app'), import('firebase/firestore')])
 
     const app = getApps()[0] ?? initializeApp(config)
+    // Named fields, not `...message` — `trap` must never reach Firestore,
+    // and the rules only allow this exact key set. `company` is omitted
+    // rather than set to undefined: the SDK rejects undefined values.
     const write = addDoc(collection(getFirestore(app), 'enquiries'), {
-      ...message,
+      name: message.name,
+      email: message.email,
+      ...(message.company ? { company: message.company } : {}),
+      body: message.body,
       receivedAt: serverTimestamp(),
       // Useful triage context, nothing identifying beyond what was typed.
       referrer: document.referrer || null,
