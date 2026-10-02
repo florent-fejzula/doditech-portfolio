@@ -492,6 +492,50 @@ export const projects: Project[] = [
     ],
     progress: 100,
   },
+  {
+    id: 'task-manager',
+    name: 'Maison Task Manager',
+    role: 'Architecture · Full build',
+    summary:
+      'The internal task app Maison de Parfum’s managers and staff run on their phones — the third system in the same shop, alongside Maison Loyalty and the in-store catalogue. Every employee has it installed as a PWA. Managers create tasks, assign them, attach countdown timers and set tasks to repeat on a fixed interval; staff see only what is assigned to them, plus the shared weekly shift schedule. Recurring work runs on a scheduled Cloud Function, so nobody has to remember to re-create the weekly jobs.',
+    year: '2025',
+    status: 'live',
+    stack: [
+      'React 19',
+      'Firestore',
+      'Firebase Auth',
+      'Cloud Functions',
+      'React Router 7',
+      'Tailwind CSS',
+      'PWA / Service Worker',
+      'Firebase Hosting',
+    ],
+    metrics: [
+      { label: 'Roles, separate views', value: '2' },
+      { label: 'Screens', value: '10' },
+      { label: 'Lines of code', value: '2.7k' },
+    ],
+    highlights: [
+      {
+        title: 'Recurring tasks that cannot multiply',
+        detail:
+          'A repeating task is a template, not a task. A daily scheduled function spawns the next occurrence only once the template is marked done, clones its subtasks with progress reset, stamps the date into the title, and advances the template’s last-occurrence date in the same pass so the next run cannot spawn it twice. Each child is explicitly marked non-recurring — otherwise every copy would become a template of its own and the list would grow geometrically.',
+      },
+      {
+        title: 'Permissions the client cannot talk its way around',
+        detail:
+          'Role checks in the interface are convenience; the database rules are the enforcement. Staff can read only tasks assigned to them, create tasks only for themselves, and edit their own tasks without being able to hand them to someone else. Profiles and roles are written only from the console, never by the app, so no one can make themselves a manager from a phone. Server functions run with admin rights and sit outside these rules entirely.',
+      },
+    ],
+    // Cropped to the task column; a staff member’s name is redacted.
+    // The original lives in the gitignored design/private/.
+    image: '/shots/task-manager.webp',
+    links: [
+      { label: 'Live app (staff login)', href: 'https://task-manager-business.web.app' },
+      { label: 'Source', href: 'https://github.com/florent-fejzula/task-manager-business' },
+    ],
+    progress: 100,
+  },
 ]
 
 export const stackGroups: StackGroup[] = [

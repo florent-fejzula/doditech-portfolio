@@ -146,7 +146,13 @@ function Dossier({ project }: { project: Project }) {
       <div>
         {/* A portrait phone capture sits beside the summary. */}
         <div className={full ? '' : 'flex flex-col gap-5 sm:flex-row sm:items-start'}>
-          {!full && <Shot project={project} full={false} />}
+          {/* Capped so a wider-than-phone capture can't squeeze the
+              summary into a sliver. */}
+          {!full && (
+            <div className="shrink-0 sm:w-[260px]">
+              <Shot project={project} full={false} />
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <p className="t-body max-w-[68ch]">{project.summary}</p>
