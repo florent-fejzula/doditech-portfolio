@@ -8,6 +8,7 @@
 import { Frame, PanelHeader, StatusMatrix } from './primitives'
 import { SECTIONS, SECTION_META, navigate, type Section } from '@/lib/useRoute'
 import { projects, restricted, type Status } from '@/data/profile'
+import { useClearance } from '@/lib/clearance'
 
 const STATUS_COLOR: Record<Status, string> = {
   live: 'var(--color-online)',
@@ -17,6 +18,9 @@ const STATUS_COLOR: Record<Status, string> = {
 }
 
 export function RightRail({ section, detail }: { section: Section; detail: string | null }) {
+  const clearance = useClearance()
+  const vault = clearance.status === 'cleared' ? clearance.records : []
+
   return (
     <aside className="hidden w-[var(--rail-w)] shrink-0 flex-col gap-[var(--gutter)] lg:flex">
       {/* ---- index ---- */}
@@ -82,32 +86,60 @@ export function RightRail({ section, detail }: { section: Section; detail: strin
             )
           })}
 
-          {/* Sealed rows continue the numbering; they lead to the
-              restricted section, not to a dossier. */}
-          {restricted.map((record, i) => (
-            <li key={`restricted-${i}`}>
-              <button
-                type="button"
-                className="hud-nav-item !py-2"
-                onClick={() => navigate('projects', 'restricted')}
-                aria-label={`Restricted record, ${record.sector}, ${record.year}`}
-              >
-                <span className="t-datum text-[var(--color-amber-dim)]">
-                  {String(projects.length + i + 1).padStart(2, '0')}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="hud-redact mt-0.5 w-[70%]" />
-                  <span className="t-label mt-1.5 block truncate !text-[8.5px] !text-[var(--color-amber)]">
-                    ▲ Restricted · {record.sector}
-                  </span>
-                </span>
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: 'var(--color-amber-dim)' }}
-                />
-              </button>
-            </li>
-          ))}
+          {/* Restricted rows continue the numbering. Sealed, they lead to
+              the restricted section; once cleared, to their dossiers. */}
+          {vault.length > 0
+            ? vault.map((record, i) => {
+                const active = section === 'projects' && detail === record.id
+                return (
+                  <li key={record.id}>
+                    <button
+                      type="button"
+                      className="hud-nav-item !py-2"
+                      data-active={active}
+                      onClick={() => navigate('projects', record.id)}
+                    >
+                      <span className="t-datum text-[var(--color-amber)]">
+                        {String(projects.length + i + 1).padStart(2, '0')}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="t-head block truncate text-[11.5px]">{record.name}</span>
+                        <span className="t-label block truncate !text-[8.5px] !text-[var(--color-amber)]">
+                          ◈ Cleared · {record.role}
+                        </span>
+                      </span>
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: 'var(--color-amber)', boxShadow: '0 0 6px var(--color-amber)' }}
+                      />
+                    </button>
+                  </li>
+                )
+              })
+            : restricted.map((record, i) => (
+                <li key={`restricted-${i}`}>
+                  <button
+                    type="button"
+                    className="hud-nav-item !py-2"
+                    onClick={() => navigate('projects', 'restricted')}
+                    aria-label={`Restricted record, ${record.sector}, ${record.year}`}
+                  >
+                    <span className="t-datum text-[var(--color-amber-dim)]">
+                      {String(projects.length + i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="hud-redact mt-0.5 w-[70%]" />
+                      <span className="t-label mt-1.5 block truncate !text-[8.5px] !text-[var(--color-amber)]">
+                        ▲ Restricted · {record.sector}
+                      </span>
+                    </span>
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: 'var(--color-amber-dim)' }}
+                    />
+                  </button>
+                </li>
+              ))}
         </ul>
       </Frame>
 

@@ -36,6 +36,9 @@ function subscribe(callback: () => void) {
     }
   }
   window.addEventListener('hashchange', handler)
+  // Catch up on anything that moved the hash before React subscribed —
+  // the clearance start-up does, when a sign-in link lands.
+  handler()
   return () => window.removeEventListener('hashchange', handler)
 }
 

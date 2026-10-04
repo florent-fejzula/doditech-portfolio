@@ -15,6 +15,8 @@ export interface Message {
   email: string
   company?: string
   body: string
+  /** Where the visitor came from, e.g. 'access' for a clearance request. */
+  topic?: string
   /**
    * Honeypot value from a field real visitors never see or fill. Any
    * non-empty value here means a bot filled every input it could find,
@@ -36,14 +38,13 @@ export type SendResult =
 /** Firestore calls can hang when the API is disabled — don't let them. */
 const WRITE_TIMEOUT_MS = 6000
 
-const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}
-
-export const isConfigured = Boolean(config.apiKey && config.projectId && config.appId)
+// Read here rather than from ./firebase: this module is imported
+// statically, and importing that one would pull the SDK into the page.
+export const isConfigured = Boolean(
+  import.meta.env.VITE_FIREBASE_API_KEY &&
+    import.meta.env.VITE_FIREBASE_PROJECT_ID &&
+    import.meta.env.VITE_FIREBASE_APP_ID,
+)
 
 /** Plain-text version of the enquiry, for the mail body and for copying. */
 export function composeDraft(message: Message) {
@@ -91,18 +92,22 @@ export async function sendMessage(message: Message): Promise<SendResult> {
   }
 
   try {
-    const [{ initializeApp, getApps }, { getFirestore, collection, addDoc, serverTimestamp }] =
-      await Promise.all([import('firebase/app'), import('firebase/firestore')])
+    const [{ firestore }, { collection, addDoc, serverTimestamp }] = await Promise.all([
+      import('./firebase'),
+      import('firebase/firestore'),
+    ])
 
-    const app = getApps()[0] ?? initializeApp(config)
     // Named fields, not `...message` — `trap` must never reach Firestore,
     // and the rules only allow this exact key set. `company` is omitted
     // rather than set to undefined: the SDK rejects undefined values.
-    const write = addDoc(collection(getFirestore(app), 'enquiries'), {
+    // The owner's email notification is sent server-side by a function
+    // watching this collection, so nothing here can skip or forge it.
+    const write = addDoc(collection(firestore(), 'enquiries'), {
       name: message.name,
       email: message.email,
       ...(message.company ? { company: message.company } : {}),
       body: message.body,
+      ...(message.topic ? { topic: message.topic } : {}),
       receivedAt: serverTimestamp(),
       // Useful triage context, nothing identifying beyond what was typed.
       referrer: document.referrer || null,

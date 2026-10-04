@@ -65,6 +65,8 @@ export function ContactPanel({ topic = null }: { topic?: string | null }) {
       email: String(form.get('email') ?? ''),
       company: String(form.get('company') ?? '') || undefined,
       body: String(form.get('body') ?? ''),
+      // Only known topics are passed on; the rules allow a short list.
+      topic: opener && topic ? topic : undefined,
       trap: String(form.get('website') ?? ''),
     })
 

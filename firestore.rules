@@ -1,12 +1,26 @@
 rules_version = '2';
 
-// Contact-form enquiries only. Anyone may submit one; nobody may read,
-// edit or delete them from the client — you read them in the console.
+// Three things live here:
+//   enquiries  — contact-form messages. Anyone may submit; nobody reads
+//                them from the client — you read them in the console.
+//   clearance  — the allowlist. One document per approved email, created
+//                by you in the console. Never writable from the client.
+//   vault      — the full restricted records. Readable only by a signed-in
+//                visitor whose verified email is on the allowlist.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Email-link sign-in proves the visitor controls the inbox, which is
+    // what email_verified records. Document ids are the lowercase email.
+    function cleared() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/clearance/$(request.auth.token.email.lower()));
+    }
+
     match /enquiries/{id} {
       allow create: if request.resource.data.keys().hasOnly(
-                        ['name', 'email', 'company', 'body', 'receivedAt', 'referrer', 'locale'])
+                        ['name', 'email', 'company', 'body', 'topic', 'receivedAt', 'referrer', 'locale'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() < 120
@@ -14,9 +28,25 @@ service cloud.firestore {
                     && request.resource.data.email.size() < 200
                     && request.resource.data.body is string
                     && request.resource.data.body.size() > 0
-                    && request.resource.data.body.size() < 5000;
+                    && request.resource.data.body.size() < 5000
+                    && (!('topic' in request.resource.data) || request.resource.data.topic in ['access']);
       allow read, update, delete: if false;
     }
+
+    // A visitor may check their own entry, so the page can tell "not
+    // approved yet" apart from "approved". Nobody can list the allowlist.
+    match /clearance/{email} {
+      allow get: if request.auth != null
+                 && request.auth.token.email_verified == true
+                 && request.auth.token.email.lower() == email;
+      allow list, write: if false;
+    }
+
+    match /vault/{key} {
+      allow read: if cleared();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

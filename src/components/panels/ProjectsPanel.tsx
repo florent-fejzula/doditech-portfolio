@@ -8,6 +8,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Bar, Brackets, DecodeText, Readout } from '@/components/hud/primitives'
 import { PanelShell } from '@/components/stage/PanelShell'
 import { projects, restricted, type Project, type Status } from '@/data/profile'
+import {
+  confirmEmail,
+  requestLink,
+  resetClearance,
+  signOutClearance,
+  useClearance,
+} from '@/lib/clearance'
 import { navigate } from '@/lib/useRoute'
 
 const STATUS_META: Record<Status, { label: string; color: string }> = {
@@ -106,7 +113,7 @@ function Shot({ project, full }: { project: Project; full: boolean }) {
   )
 }
 
-function Dossier({ project }: { project: Project }) {
+function Dossier({ project, restricted: isRestricted = false }: { project: Project; restricted?: boolean }) {
   const full = project.imageLayout === 'full' && framesOf(project).length > 0
 
   return (
@@ -117,6 +124,7 @@ function Dossier({ project }: { project: Project }) {
       {/* ---- header, across the full panel ---- */}
       <header className="xl:col-span-2">
         <div className="flex flex-wrap items-center gap-3">
+          {isRestricted && <ClearedTag />}
           <StatusTag status={project.status} />
           <span className="t-datum text-[var(--color-cy-500)]">{project.year}</span>
           <span className="hud-ticks h-2 flex-1 opacity-40" />
@@ -276,12 +284,70 @@ function WarningGlyph({ size = 16 }: { size?: number }) {
   )
 }
 
+const AMBER_BTN = 'hud-btn !border-[var(--color-amber)] !text-[var(--color-amber)]'
+
+/** One email field and a button — used to ask for a link and to confirm one. */
+function EmailForm({ label, onSubmit }: { label: string; onSubmit: (email: string) => void }) {
+  return (
+    <form
+      className="flex flex-wrap gap-2"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const email = String(new FormData(event.currentTarget).get('email') ?? '').trim()
+        if (email) onSubmit(email)
+      }}
+    >
+      <input
+        name="email"
+        type="email"
+        required
+        autoComplete="email"
+        placeholder="you@company.com"
+        aria-label="Email address"
+        className="min-w-0 flex-1 basis-[220px] border border-[var(--color-amber-dim)] bg-[color-mix(in_oklab,var(--color-amber)_6%,transparent)] px-3 py-2 font-[var(--font-ui)] text-[15px] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-ink-faint)] focus:border-[var(--color-amber)]"
+      />
+      <button type="submit" className={AMBER_BTN}>
+        {label}
+      </button>
+    </form>
+  )
+}
+
+function SealedCard({ number, sector, year }: { number: number; sector: string; year: string }) {
+  return (
+    <li className="border border-[color-mix(in_oklab,var(--color-amber)_28%,transparent)] p-3.5">
+      <div className="flex items-center gap-2">
+        <span className="t-datum text-[var(--color-amber-dim)]">
+          {String(number).padStart(2, '0')}
+        </span>
+        <span className="hud-ticks h-2 flex-1 opacity-30" />
+        <span className="t-datum border border-[var(--color-amber-dim)] px-1.5 py-0.5 !text-[9px] !tracking-[0.14em] text-[var(--color-amber)]">
+          SEALED
+        </span>
+      </div>
+      <span className="hud-redact mt-3 w-[62%]" />
+      <span className="hud-redact mt-2 w-[38%] opacity-70" />
+      <span className="hud-redact mt-3.5 w-full opacity-50" />
+      <span className="hud-redact mt-1.5 w-[84%] opacity-50" />
+      <div className="mt-3.5 flex items-center gap-2 border-t border-[color-mix(in_oklab,var(--color-amber)_20%,transparent)] pt-2">
+        <span className="t-label !text-[9px] text-[var(--color-amber)]">{sector}</span>
+        <span className="hud-ticks h-2 flex-1 opacity-20" />
+        <span className="t-datum text-[var(--color-amber-dim)]">{year}</span>
+      </div>
+    </li>
+  )
+}
+
 /**
- * Real work kept off the public index. Each sealed card carries only
- * sector and year — the rest never ships — and the way in is a message.
+ * Real work kept off the public index. Sealed, each card carries only
+ * sector and year — the rest never ships. A visitor on the allowlist
+ * signs in with an emailed link and the same cards open into records,
+ * fetched from Firestore behind rules that check the list.
  */
 function Restricted({ focus }: { focus: boolean }) {
   const ref = useRef<HTMLElement>(null)
+  const clearance = useClearance()
+  const [signingIn, setSigningIn] = useState(false)
 
   // Arriving from the archive rail lands on the section, not the top.
   useEffect(() => {
@@ -290,12 +356,112 @@ function Restricted({ focus }: { focus: boolean }) {
 
   if (restricted.length === 0) return null
   const count = restricted.length
+  const cleared = clearance.status === 'cleared'
+
+  const requestAccess = (
+    <button type="button" onClick={() => navigate('contact', 'access')} className={AMBER_BTN}>
+      Request access ›
+    </button>
+  )
+  const signOut = (
+    <button type="button" onClick={() => signOutClearance()} className="hud-btn">
+      Sign out
+    </button>
+  )
+
+  let body
+  switch (clearance.status) {
+    case 'working':
+      body = <p className="t-datum text-[var(--color-amber)]">◌ Verifying clearance…</p>
+      break
+    case 'link-sent':
+      body = (
+        <div className="space-y-3">
+          <p className="t-body max-w-[60ch] text-[14px] text-[var(--color-ink-dim)]">
+            Sign-in link sent to{' '}
+            <span className="text-[var(--color-amber)]">{clearance.email}</span>. Open it from
+            your inbox, ideally in this browser. Check spam if it is not there in a minute.
+          </p>
+          <button type="button" onClick={resetClearance} className="hud-btn">
+            Use a different email
+          </button>
+        </div>
+      )
+      break
+    case 'confirm-email':
+      body = (
+        <div className="max-w-[520px] space-y-3">
+          <p className="t-body text-[14px] text-[var(--color-ink-dim)]">
+            This link was opened in a different browser from the one that asked for it. Confirm
+            the email it was sent to.
+          </p>
+          <EmailForm label="Confirm ›" onSubmit={(email) => confirmEmail(email)} />
+        </div>
+      )
+      break
+    case 'denied':
+      body = (
+        <div className="space-y-3">
+          <p className="t-body max-w-[60ch] text-[14px] text-[var(--color-ink-dim)]">
+            Signed in as <span className="text-[var(--color-amber)]">{clearance.email}</span>, but
+            there is no clearance on file for it yet. I review requests personally.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {requestAccess}
+            {signOut}
+          </div>
+        </div>
+      )
+      break
+    case 'cleared':
+      body = (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="t-body text-[14px] text-[var(--color-ink-dim)]">
+            Signed in as <span className="text-[var(--color-online)]">{clearance.email}</span>.{' '}
+            {clearance.records.length === 1
+              ? 'One record unlocked.'
+              : `${clearance.records.length} records unlocked.`}
+          </p>
+          {signOut}
+        </div>
+      )
+      break
+    default:
+      body = (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <p className="t-body max-w-[58ch] text-[14px] text-[var(--color-ink-dim)]">
+              {count === 1 ? 'One further record is' : `${count} further records are`} not shown
+              publicly. Walkthroughs on request — tell me what you are building and I will show
+              the work closest to it.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {requestAccess}
+              {!signingIn && (
+                <button type="button" onClick={() => setSigningIn(true)} className="hud-btn">
+                  Have clearance? Sign in
+                </button>
+              )}
+            </div>
+          </div>
+          {clearance.status === 'error' && (
+            <p className="t-datum !text-[10px] text-[var(--color-alert)]">▲ {clearance.message}</p>
+          )}
+          {signingIn && (
+            <div className="max-w-[520px]">
+              <EmailForm label="Send sign-in link ›" onSubmit={(email) => requestLink(email)} />
+            </div>
+          )}
+        </div>
+      )
+  }
 
   return (
     <section
       ref={ref}
       aria-labelledby="restricted-title"
       className="hud-restricted anim-rise mt-2.5 scroll-mt-4 p-4"
+      data-cleared={cleared || undefined}
     >
       <div className="fx-sweep">
         <i />
@@ -307,55 +473,112 @@ function Restricted({ focus }: { focus: boolean }) {
           Restricted access
         </h3>
         <span className="hud-ticks h-2 min-w-8 flex-1 opacity-30" />
-        <span className="t-datum !text-[9px] !tracking-[0.18em] text-[var(--color-amber)]">
-          <span className="clearance anim-blink">◆ CLEARANCE REQUIRED</span>
-          <span className="denied">▲ ACCESS DENIED</span>
-        </span>
+        {cleared ? (
+          <span className="t-datum !text-[9px] !tracking-[0.18em] text-[var(--color-online)]">
+            ◈ CLEARANCE GRANTED
+          </span>
+        ) : (
+          <span className="t-datum !text-[9px] !tracking-[0.18em] text-[var(--color-amber)]">
+            <span className="clearance anim-blink">◆ CLEARANCE REQUIRED</span>
+            <span className="denied">▲ ACCESS DENIED</span>
+          </span>
+        )}
       </div>
 
-      <div className="relative mt-3 flex flex-wrap items-end justify-between gap-4">
-        <p className="t-body max-w-[58ch] text-[14px] text-[var(--color-ink-dim)]">
-          {count === 1 ? 'One further record is' : `${count} further records are`} not shown
-          publicly. Walkthroughs on request — tell me what you are building and I will show the
-          work closest to it.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('contact', 'access')}
-          className="hud-btn !border-[var(--color-amber)] !text-[var(--color-amber)]"
-        >
-          Request access ›
-        </button>
-      </div>
+      <div className="relative mt-3">{body}</div>
 
       <ul className="relative mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-        {restricted.map((record, i) => (
-          <li
-            key={i}
-            className="border border-[color-mix(in_oklab,var(--color-amber)_28%,transparent)] p-3.5"
-          >
-            <div className="flex items-center gap-2">
-              <span className="t-datum text-[var(--color-amber-dim)]">
-                {String(projects.length + i + 1).padStart(2, '0')}
-              </span>
-              <span className="hud-ticks h-2 flex-1 opacity-30" />
-              <span className="t-datum border border-[var(--color-amber-dim)] px-1.5 py-0.5 !text-[9px] !tracking-[0.14em] text-[var(--color-amber)]">
-                SEALED
-              </span>
-            </div>
-            <span className="hud-redact mt-3 w-[62%]" />
-            <span className="hud-redact mt-2 w-[38%] opacity-70" />
-            <span className="hud-redact mt-3.5 w-full opacity-50" />
-            <span className="hud-redact mt-1.5 w-[84%] opacity-50" />
-            <div className="mt-3.5 flex items-center gap-2 border-t border-[color-mix(in_oklab,var(--color-amber)_20%,transparent)] pt-2">
-              <span className="t-label !text-[9px] text-[var(--color-amber)]">{record.sector}</span>
-              <span className="hud-ticks h-2 flex-1 opacity-20" />
-              <span className="t-datum text-[var(--color-amber-dim)]">{record.year}</span>
-            </div>
-          </li>
-        ))}
+        {cleared
+          ? clearance.records.map((record, i) => (
+              <ProjectCard
+                key={record.id}
+                project={record}
+                number={projects.length + i + 1}
+                restricted
+              />
+            ))
+          : restricted.map((record, i) => (
+              <SealedCard
+                key={i}
+                number={projects.length + i + 1}
+                sector={record.sector}
+                year={record.year}
+              />
+            ))}
       </ul>
     </section>
+  )
+}
+
+function ProjectCard({
+  project,
+  number,
+  restricted: isRestricted = false,
+}: {
+  project: Project
+  number: number
+  restricted?: boolean
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => navigate('projects', project.id)}
+        className="hud-frame h-full w-full text-left transition-[filter] duration-200 hover:brightness-[1.35]"
+      >
+        <div className="hud-frame__in relative flex h-full flex-col p-3.5">
+          <Brackets inset={4} />
+          <div className="flex items-center gap-2">
+            <span
+              className="t-datum"
+              style={{ color: isRestricted ? 'var(--color-amber)' : 'var(--color-cy-600)' }}
+            >
+              {String(number).padStart(2, '0')}
+            </span>
+            <span className="hud-ticks h-2 flex-1 opacity-40" />
+            {isRestricted && <ClearedTag />}
+            <StatusTag status={project.status} />
+          </div>
+
+          <h3 className="t-head mt-2.5 text-[14px]">{project.name}</h3>
+          <p className="t-label mt-1 !normal-case !tracking-normal">{project.role}</p>
+
+          <p className="t-body mt-2.5 line-clamp-3 flex-1 text-[13.5px] text-[var(--color-ink-dim)]">
+            {project.summary}
+          </p>
+
+          <ul className="mt-3 flex flex-wrap gap-1">
+            {project.stack.slice(0, 3).map((tech) => (
+              <li
+                key={tech}
+                className="t-datum border border-[var(--line-soft)] px-1.5 py-0.5 !text-[9px]"
+              >
+                {tech}
+              </li>
+            ))}
+            {project.stack.length > 3 && (
+              <li className="t-datum px-1 py-0.5 !text-[9px] text-[var(--color-cy-600)]">
+                +{project.stack.length - 3}
+              </li>
+            )}
+          </ul>
+
+          <div className="mt-3 flex items-center gap-2 border-t border-[var(--line-soft)] pt-2">
+            <span className="t-datum text-[var(--color-cy-500)]">{project.year}</span>
+            <span className="hud-ticks h-2 flex-1 opacity-30" />
+            <span className="t-label !text-[9px] text-[var(--color-cy-300)]">open ›</span>
+          </div>
+        </div>
+      </button>
+    </li>
+  )
+}
+
+function ClearedTag() {
+  return (
+    <span className="t-datum shrink-0 border border-[var(--color-amber)] px-1.5 py-0.5 !text-[9px] !tracking-[0.14em] text-[var(--color-amber)]">
+      RESTRICTED
+    </span>
   )
 }
 
@@ -367,53 +590,7 @@ function Index({ focusRestricted }: { focusRestricted: boolean }) {
       </p>
       <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
         {projects.map((project, i) => (
-          <li key={project.id}>
-            <button
-              type="button"
-              onClick={() => navigate('projects', project.id)}
-              className="hud-frame h-full w-full text-left transition-[filter] duration-200 hover:brightness-[1.35]"
-            >
-              <div className="hud-frame__in relative flex h-full flex-col p-3.5">
-                <Brackets inset={4} />
-                <div className="flex items-center gap-2">
-                  <span className="t-datum text-[var(--color-cy-600)]">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <span className="hud-ticks h-2 flex-1 opacity-40" />
-                  <StatusTag status={project.status} />
-                </div>
-
-                <h3 className="t-head mt-2.5 text-[14px]">{project.name}</h3>
-                <p className="t-label mt-1 !normal-case !tracking-normal">{project.role}</p>
-
-                <p className="t-body mt-2.5 line-clamp-3 flex-1 text-[13.5px] text-[var(--color-ink-dim)]">
-                  {project.summary}
-                </p>
-
-                <ul className="mt-3 flex flex-wrap gap-1">
-                  {project.stack.slice(0, 3).map((tech) => (
-                    <li
-                      key={tech}
-                      className="t-datum border border-[var(--line-soft)] px-1.5 py-0.5 !text-[9px]"
-                    >
-                      {tech}
-                    </li>
-                  ))}
-                  {project.stack.length > 3 && (
-                    <li className="t-datum px-1 py-0.5 !text-[9px] text-[var(--color-cy-600)]">
-                      +{project.stack.length - 3}
-                    </li>
-                  )}
-                </ul>
-
-                <div className="mt-3 flex items-center gap-2 border-t border-[var(--line-soft)] pt-2">
-                  <span className="t-datum text-[var(--color-cy-500)]">{project.year}</span>
-                  <span className="hud-ticks h-2 flex-1 opacity-30" />
-                  <span className="t-label !text-[9px] text-[var(--color-cy-300)]">open ›</span>
-                </div>
-              </div>
-            </button>
-          </li>
+          <ProjectCard key={project.id} project={project} number={i + 1} />
         ))}
       </ul>
 
@@ -423,7 +600,11 @@ function Index({ focusRestricted }: { focusRestricted: boolean }) {
 }
 
 export function ProjectsPanel({ detail }: { detail: string | null }) {
-  const project = detail ? projects.find((p) => p.id === detail) : undefined
+  const clearance = useClearance()
+  const vault = clearance.status === 'cleared' ? clearance.records : []
+  const open = detail ? projects.find((p) => p.id === detail) : undefined
+  const unlocked = !open && detail ? vault.find((p) => p.id === detail) : undefined
+  const project = open ?? unlocked
 
   return (
     <PanelShell
@@ -436,16 +617,22 @@ export function ProjectsPanel({ detail }: { detail: string | null }) {
       }
       aside={
         project ? (
-          <button type="button" className="hud-btn !px-3 !py-1.5" onClick={() => navigate('projects')}>
+          <button
+            type="button"
+            className="hud-btn !px-3 !py-1.5"
+            onClick={() => navigate('projects', unlocked ? 'restricted' : null)}
+          >
             ◂ Index
           </button>
         ) : undefined
       }
     >
       {project ? (
-        <Dossier project={project} />
+        <Dossier project={project} restricted={Boolean(unlocked)} />
       ) : (
-        <Index focusRestricted={detail === 'restricted'} />
+        // An unknown id — or a restricted one before clearance resolves —
+        // lands on the restricted section rather than an empty panel.
+        <Index focusRestricted={detail !== null} />
       )}
     </PanelShell>
   )
