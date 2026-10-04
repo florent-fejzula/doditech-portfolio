@@ -39,7 +39,16 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   )
 }
 
-export function ContactPanel() {
+/** Message openers for deep links such as #/contact/access. */
+const OPENERS: Record<string, { label: string; body: string }> = {
+  access: {
+    label: 'Access request · restricted records',
+    body: 'I would like to see the restricted records in your project archive.\n\nWhat we are working on: ',
+  },
+}
+
+export function ContactPanel({ topic = null }: { topic?: string | null }) {
+  const opener = topic ? OPENERS[topic] : undefined
   const [state, setState] = useState<State>('idle')
   const [error, setError] = useState('')
   // Held so a visitor whose mail client never opened can copy what they
@@ -189,6 +198,12 @@ export function ContactPanel() {
                   </span>
                 </div>
 
+                {opener && (
+                  <p className="t-datum border border-[var(--color-amber-dim)] px-2.5 py-1.5 !text-[10px] !tracking-[0.14em] text-[var(--color-amber)] uppercase">
+                    ▲ {opener.label}
+                  </p>
+                )}
+
                 {/* Honeypot: off-screen rather than display:none, which
                     some bots skip. Real visitors never tab to it or see
                     it; a filled value means something scripted the form. */}
@@ -223,7 +238,13 @@ export function ContactPanel() {
 
                 <label className="block">
                   <span className="t-label">message *</span>
-                  <textarea name="body" required rows={6} className={`${field} mt-1 resize-none`} />
+                  <textarea
+                    name="body"
+                    required
+                    rows={6}
+                    defaultValue={opener?.body}
+                    className={`${field} mt-1 resize-none`}
+                  />
                 </label>
 
                 {state === 'error' && (

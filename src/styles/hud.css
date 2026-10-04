@@ -390,3 +390,60 @@
     grid-template-columns: repeat(var(--stat-cols, 4), minmax(0, 1fr));
   }
 }
+
+/* ======================== RESTRICTED =========================== */
+
+/* Amber plate for work kept off the public index. Faint diagonal
+   hatching reads as "sealed" without competing with the cards above. */
+.hud-restricted {
+  position: relative;
+  border: 1px solid color-mix(in oklab, var(--color-amber) 45%, transparent);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklab, var(--color-amber) 5%, transparent) 0 2px,
+      transparent 2px 9px
+    ),
+    color-mix(in oklab, var(--color-amber) 4%, var(--color-void));
+}
+
+.hud-restricted .fx-sweep > i {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--color-amber) 14%, transparent),
+    transparent
+  );
+  animation-duration: 5s;
+}
+
+/* Hatched bar standing in for text that is not published. */
+.hud-redact {
+  display: block;
+  height: 9px;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-amber) 34%, transparent) 0 3px,
+    color-mix(in oklab, var(--color-amber) 10%, transparent) 3px 6px
+  );
+}
+
+/* Hover swaps the standing label for a short denial flicker. */
+.hud-restricted .denied {
+  display: none;
+}
+
+.hud-restricted:hover .denied {
+  display: inline;
+  animation: hud-denied 0.6s steps(1, end) both;
+}
+
+.hud-restricted:hover .clearance {
+  display: none;
+}
+
+@keyframes hud-denied {
+  0%, 20%, 40% { opacity: 1; }
+  10%, 30% { opacity: 0.1; }
+  100% { opacity: 1; }
+}

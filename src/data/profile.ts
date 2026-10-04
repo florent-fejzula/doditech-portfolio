@@ -538,6 +538,20 @@ export const projects: Project[] = [
   },
 ]
 
+/**
+ * Real work kept off the public index. Only these two fields ship — this
+ * file is in the bundle and the repo is public, so anything written here
+ * is public. The full write-ups and screenshots live in the gitignored
+ * design/private/restricted/. Every entry must be a real project: the
+ * count on the site is a claim like any other.
+ */
+export interface RestrictedRecord {
+  sector: string
+  year: string
+}
+
+export const restricted: RestrictedRecord[] = [{ sector: 'Social care', year: '2025' }]
+
 export const stackGroups: StackGroup[] = [
   {
     label: 'Interface',
@@ -614,5 +628,6 @@ export const ticker = [
   'DISCOVERY TO DEPLOYED PRODUCT',
   'ANGULAR · REACT · REACT NATIVE · FIREBASE',
   `${projects.filter((p) => p.status !== 'archived').length} ACTIVE RECORDS`,
+  ...(restricted.length ? [`${restricted.length} RESTRICTED`] : []),
   'AVAILABLE FOR NEW ENGAGEMENTS',
 ]

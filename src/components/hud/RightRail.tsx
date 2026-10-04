@@ -7,7 +7,7 @@
 
 import { Frame, PanelHeader, StatusMatrix } from './primitives'
 import { SECTIONS, SECTION_META, navigate, type Section } from '@/lib/useRoute'
-import { projects, type Status } from '@/data/profile'
+import { projects, restricted, type Status } from '@/data/profile'
 
 const STATUS_COLOR: Record<Status, string> = {
   live: 'var(--color-online)',
@@ -49,7 +49,7 @@ export function RightRail({ section, detail }: { section: Section; detail: strin
         <PanelHeader
           code="ARC"
           title="Archive"
-          right={<span className="t-datum text-[var(--color-cy-500)]">{projects.length}</span>}
+          right={<span className="t-datum text-[var(--color-cy-500)]">{projects.length + restricted.length}</span>}
         />
         <ul className="scroll-hud h-[calc(100%-33px)] overflow-y-auto">
           {projects.map((project, i) => {
@@ -81,6 +81,33 @@ export function RightRail({ section, detail }: { section: Section; detail: strin
               </li>
             )
           })}
+
+          {/* Sealed rows continue the numbering; they lead to the
+              restricted section, not to a dossier. */}
+          {restricted.map((record, i) => (
+            <li key={`restricted-${i}`}>
+              <button
+                type="button"
+                className="hud-nav-item !py-2"
+                onClick={() => navigate('projects', 'restricted')}
+                aria-label={`Restricted record, ${record.sector}, ${record.year}`}
+              >
+                <span className="t-datum text-[var(--color-amber-dim)]">
+                  {String(projects.length + i + 1).padStart(2, '0')}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="hud-redact mt-0.5 w-[70%]" />
+                  <span className="t-label mt-1.5 block truncate !text-[8.5px] !text-[var(--color-amber)]">
+                    ▲ Restricted · {record.sector}
+                  </span>
+                </span>
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: 'var(--color-amber-dim)' }}
+                />
+              </button>
+            </li>
+          ))}
         </ul>
       </Frame>
 

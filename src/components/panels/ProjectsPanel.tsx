@@ -4,10 +4,10 @@
    the hash, so every project has a shareable URL.
    ================================================================== */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bar, Brackets, DecodeText, Readout } from '@/components/hud/primitives'
 import { PanelShell } from '@/components/stage/PanelShell'
-import { projects, type Project, type Status } from '@/data/profile'
+import { projects, restricted, type Project, type Status } from '@/data/profile'
 import { navigate } from '@/lib/useRoute'
 
 const STATUS_META: Record<Status, { label: string; color: string }> = {
@@ -259,7 +259,107 @@ function Dossier({ project }: { project: Project }) {
   )
 }
 
-function Index() {
+/** Warning triangle, drawn rather than an emoji so it takes the amber. */
+function WarningGlyph({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
+      <path
+        d="M12 2.5 22.5 21h-21z"
+        fill="color-mix(in oklab, var(--color-amber) 14%, transparent)"
+        stroke="var(--color-amber)"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M12 9v6" stroke="var(--color-amber)" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="18" r="1.15" fill="var(--color-amber)" />
+    </svg>
+  )
+}
+
+/**
+ * Real work kept off the public index. Each sealed card carries only
+ * sector and year — the rest never ships — and the way in is a message.
+ */
+function Restricted({ focus }: { focus: boolean }) {
+  const ref = useRef<HTMLElement>(null)
+
+  // Arriving from the archive rail lands on the section, not the top.
+  useEffect(() => {
+    if (focus) ref.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [focus])
+
+  if (restricted.length === 0) return null
+  const count = restricted.length
+
+  return (
+    <section
+      ref={ref}
+      aria-labelledby="restricted-title"
+      className="hud-restricted anim-rise mt-2.5 scroll-mt-4 p-4"
+    >
+      <div className="fx-sweep">
+        <i />
+      </div>
+
+      <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
+        <WarningGlyph size={18} />
+        <h3 id="restricted-title" className="t-head text-[14px] text-[var(--color-amber)]">
+          Restricted access
+        </h3>
+        <span className="hud-ticks h-2 min-w-8 flex-1 opacity-30" />
+        <span className="t-datum !text-[9px] !tracking-[0.18em] text-[var(--color-amber)]">
+          <span className="clearance anim-blink">◆ CLEARANCE REQUIRED</span>
+          <span className="denied">▲ ACCESS DENIED</span>
+        </span>
+      </div>
+
+      <div className="relative mt-3 flex flex-wrap items-end justify-between gap-4">
+        <p className="t-body max-w-[58ch] text-[14px] text-[var(--color-ink-dim)]">
+          {count === 1 ? 'One further record is' : `${count} further records are`} not shown
+          publicly. Walkthroughs on request — tell me what you are building and I will show the
+          work closest to it.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('contact', 'access')}
+          className="hud-btn !border-[var(--color-amber)] !text-[var(--color-amber)]"
+        >
+          Request access ›
+        </button>
+      </div>
+
+      <ul className="relative mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+        {restricted.map((record, i) => (
+          <li
+            key={i}
+            className="border border-[color-mix(in_oklab,var(--color-amber)_28%,transparent)] p-3.5"
+          >
+            <div className="flex items-center gap-2">
+              <span className="t-datum text-[var(--color-amber-dim)]">
+                {String(projects.length + i + 1).padStart(2, '0')}
+              </span>
+              <span className="hud-ticks h-2 flex-1 opacity-30" />
+              <span className="t-datum border border-[var(--color-amber-dim)] px-1.5 py-0.5 !text-[9px] !tracking-[0.14em] text-[var(--color-amber)]">
+                SEALED
+              </span>
+            </div>
+            <span className="hud-redact mt-3 w-[62%]" />
+            <span className="hud-redact mt-2 w-[38%] opacity-70" />
+            <span className="hud-redact mt-3.5 w-full opacity-50" />
+            <span className="hud-redact mt-1.5 w-[84%] opacity-50" />
+            <div className="mt-3.5 flex items-center gap-2 border-t border-[color-mix(in_oklab,var(--color-amber)_20%,transparent)] pt-2">
+              <span className="t-label !text-[9px] text-[var(--color-amber)]">{record.sector}</span>
+              <span className="hud-ticks h-2 flex-1 opacity-20" />
+              <span className="t-datum text-[var(--color-amber-dim)]">{record.year}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function Index({ focusRestricted }: { focusRestricted: boolean }) {
   return (
     <div className="p-5">
       <p className="t-body mb-5 max-w-[60ch] text-[var(--color-ink-dim)]">
@@ -316,6 +416,8 @@ function Index() {
           </li>
         ))}
       </ul>
+
+      <Restricted focus={focusRestricted} />
     </div>
   )
 }
@@ -327,7 +429,11 @@ export function ProjectsPanel({ detail }: { detail: string | null }) {
     <PanelShell
       code="01"
       title={project ? 'Project dossier' : 'Project index'}
-      subtitle={project ? project.name : `${projects.length} records`}
+      subtitle={
+        project
+          ? project.name
+          : `${projects.length} records${restricted.length ? ` · ${restricted.length} restricted` : ''}`
+      }
       aside={
         project ? (
           <button type="button" className="hud-btn !px-3 !py-1.5" onClick={() => navigate('projects')}>
@@ -336,7 +442,11 @@ export function ProjectsPanel({ detail }: { detail: string | null }) {
         ) : undefined
       }
     >
-      {project ? <Dossier project={project} /> : <Index />}
+      {project ? (
+        <Dossier project={project} />
+      ) : (
+        <Index focusRestricted={detail === 'restricted'} />
+      )}
     </PanelShell>
   )
 }

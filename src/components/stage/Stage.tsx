@@ -43,7 +43,7 @@ export function Stage({ route, pulseKey }: { route: Route; pulseKey: number }) {
       {section === 'projects' && <ProjectsPanel key={detail ?? 'index'} detail={detail} />}
       {section === 'about' && <AboutPanel />}
       {section === 'stack' && <StackPanel />}
-      {section === 'contact' && <ContactPanel />}
+      {section === 'contact' && <ContactPanel key={detail ?? 'open'} topic={detail} />}
     </main>
   )
 }
