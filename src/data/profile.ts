@@ -550,7 +550,10 @@ export interface RestrictedRecord {
   year: string
 }
 
-export const restricted: RestrictedRecord[] = [{ sector: 'Social care', year: '2025' }]
+export const restricted: RestrictedRecord[] = [
+  { sector: 'Social care', year: '2025' },
+  { sector: 'Applied AI', year: '2025–2026' },
+]
 
 export const stackGroups: StackGroup[] = [
   {
